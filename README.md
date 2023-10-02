@@ -1,3 +1,14 @@
+# QUICKSTART
+
+```
+pip install torch numpy transformers datasets tiktoken wandb tqdm
+wandb login xxxx (xxxx = auth token, find it at wandb.ai/authorize)
+python data/shakespeare_char/prepare.py
+python train.py config/train_shakespeare_char.py
+python sample.py --out_dir=out-shakespeare-char
+```
+
+
 
 # nanoGPT
 
