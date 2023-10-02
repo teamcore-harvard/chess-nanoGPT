@@ -8,7 +8,7 @@ python train.py config/train_shakespeare_char.py
 python sample.py --out_dir=out-shakespeare-char
 ```
 
-
+To sample on Mac, uncomment line 21 in sample.py. To train on Mac, rename `train_shakespeare_char_mac.py` to `train_shakespeare_char.py`.
 
 # nanoGPT
 
