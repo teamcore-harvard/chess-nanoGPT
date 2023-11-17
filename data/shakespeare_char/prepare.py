@@ -12,7 +12,7 @@ import numpy as np
 # download the tiny shakespeare dataset
 input_file_path = os.path.join(os.path.dirname(__file__), 'input.txt')
 if not os.path.exists(input_file_path):
-    data_url = 'https://adam-karvonen-chess.s3.us-east-2.amazonaws.com/chess_moves.txt'
+    data_url = 'https://adam-karvonen-chess.s3.us-east-2.amazonaws.com/1.5M_chess_moves.txt'
     with open(input_file_path, 'w') as f:
         f.write(requests.get(data_url).text)
 
@@ -36,8 +36,17 @@ def decode(l):
 
 # create the train and test splits
 n = len(data)
-train_data = data[:int(n*0.9)]
-val_data = data[int(n*0.9):]
+
+split_ratio = 0.98
+block_size = 1024
+
+split_point = int(n * split_ratio)
+
+# Adjusting the split point to be a multiple of block_size
+split_point = split_point - (split_point % block_size)
+
+train_data = data[:split_point]
+val_data = data[split_point:]
 
 # encode both to integers
 train_ids = encode(train_data)
