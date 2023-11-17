@@ -12,7 +12,7 @@ import numpy as np
 # download the tiny shakespeare dataset
 input_file_path = os.path.join(os.path.dirname(__file__), 'input.txt')
 if not os.path.exists(input_file_path):
-    data_url = 'https://adam-karvonen-chess.s3.us-east-2.amazonaws.com/1.5M_chess_moves.txt'
+    data_url = 'https://adam-karvonen-chess.s3.us-east-2.amazonaws.com/3gb_batch_input.txt'
     with open(input_file_path, 'w') as f:
         f.write(requests.get(data_url).text)
 
