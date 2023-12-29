@@ -11,6 +11,7 @@ import pickle
 # number of workers in .map() call
 # good number to use is ~order number of cpu cores // 2
 num_proc = 8
+dtype = np.uint8  # (can do since enc.max_token_value == 50256 is < 2**16)
 
 # number of workers in load_dataset() call
 # best number might be different from num_proc above as it also depends on NW speed.
@@ -74,7 +75,7 @@ if __name__ == "__main__":
     column_name = "transcript"
 
     def process(example):
-        ids = [stoi[c] for c in example[column_name]]
+        ids = np.array([stoi[c] for c in example[column_name]], dtype=dtype)
         out = {"ids": ids, "len": len(ids)}
         return out
 
@@ -93,7 +94,6 @@ if __name__ == "__main__":
         arr_len = np.sum(dset["len"], dtype=np.uint64)
         print(f"{split} has {arr_len} tokens")
         filename = os.path.join(os.path.dirname(__file__), f"{split}.bin")
-        dtype = np.uint8  # (can do since enc.max_token_value == 50256 is < 2**16)
         arr = np.memmap(filename, dtype=dtype, mode="w+", shape=(arr_len,))
         print(arr.shape)
         total_batches = 1024
