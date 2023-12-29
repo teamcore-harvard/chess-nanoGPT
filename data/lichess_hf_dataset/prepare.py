@@ -23,6 +23,7 @@ if __name__ == "__main__":
 
     dataset_path = "adamkarvonen/chess_games"
     file_path = "lichess_6gb_blocks.zip"
+    file_path = "smaller_pgn_file_blocks.zip"
 
     # Load the dataset
     dataset = load_dataset(dataset_path, data_files=file_path)
@@ -47,7 +48,8 @@ if __name__ == "__main__":
     # })
 
     # we now want to tokenize the dataset. first define the encoding function (gpt2 bpe)
-    with open("meta.pkl", "rb") as f:
+    meta_path = os.path.join(os.path.dirname(__file__), "meta.pkl")
+    with open(meta_path, "rb") as f:
         meta = pickle.load(f)
 
     stoi = meta["stoi"]
@@ -59,15 +61,15 @@ if __name__ == "__main__":
 
     # to read the bin files later, e.g. with numpy:
     # m = np.memmap('train.bin', dtype=np.uint16, mode='r')
-    print(split_dataset["val"][0])
-    print(len(split_dataset["val"]["transcript"][0]))
+    # print(split_dataset["val"][0])
+    # print(len(split_dataset["val"]["transcript"][0]))
 
     for game in split_dataset["train"]["transcript"]:
         if len(game) != 1024:
             print(len(game))
             print(game)
             break
-    print(stoi)
+    # print(stoi)
 
     column_name = "transcript"
 
@@ -84,13 +86,13 @@ if __name__ == "__main__":
         num_proc=num_proc,
     )
 
-    print(tokenized["val"]["ids"])
+    # print(tokenized["val"]["ids"])
 
     # concatenate all the ids in each dataset into one large file we can use for training
     for split, dset in tokenized.items():
         arr_len = np.sum(dset["len"], dtype=np.uint64)
         print(f"{split} has {arr_len} tokens")
-        filename = f"{split}.bin"
+        filename = os.path.join(os.path.dirname(__file__), f"{split}.bin")
         dtype = np.uint8  # (can do since enc.max_token_value == 50256 is < 2**16)
         arr = np.memmap(filename, dtype=dtype, mode="w+", shape=(arr_len,))
         print(arr.shape)
@@ -102,10 +104,10 @@ if __name__ == "__main__":
             batch = dset.shard(
                 num_shards=total_batches, index=batch_idx, contiguous=True
             ).with_format("numpy")
-            print(batch[0])
+            # print(batch[0])
             arr_batch = np.concatenate(batch["ids"])
-            print(arr_batch)
-            print(arr_batch.shape)
+            # print(arr_batch)
+            # print(arr_batch.shape)
             # Write into mmap
             arr[idx : idx + len(arr_batch)] = arr_batch
             idx += len(arr_batch)
