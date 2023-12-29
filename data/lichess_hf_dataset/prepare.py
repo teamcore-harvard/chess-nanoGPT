@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     dataset_path = "adamkarvonen/chess_games"
     file_path = "lichess_6gb_blocks.zip"
-    file_path = "smaller_pgn_file_blocks.zip"
+    # file_path = "smaller_pgn_file_blocks.zip"
 
     # Load the dataset
     dataset = load_dataset(dataset_path, data_files=file_path)
