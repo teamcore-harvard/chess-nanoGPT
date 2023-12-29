@@ -13,7 +13,7 @@ wandb_log = True # override via command line if you like
 wandb_project = 'chess-gpt-batch'
 wandb_run_name = 'Razor-new'
 
-dataset = 'shakespeare_char'
+dataset = 'lichess_hf_dataset'
 gradient_accumulation_steps = 1
 batch_size = 20
 block_size = 1023 # context of up to 256 previous characters
