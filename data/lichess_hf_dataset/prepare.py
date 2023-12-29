@@ -11,7 +11,7 @@ import pickle
 # number of workers in .map() call
 # good number to use is ~order number of cpu cores // 2
 num_proc = 8
-dtype = np.uint8  # (can do since enc.max_token_value == 50256 is < 2**16)
+dtype = np.uint8  # Currently there are only 32 tokens in the chess LLMs vocab
 
 # number of workers in load_dataset() call
 # best number might be different from num_proc above as it also depends on NW speed.
@@ -19,8 +19,7 @@ dtype = np.uint8  # (can do since enc.max_token_value == 50256 is < 2**16)
 num_proc_load_dataset = num_proc
 
 if __name__ == "__main__":
-    # takes 54GB in huggingface .cache dir, about 8M documents (8,013,769)
-    # dataset = load_dataset("csv", data_files={"train": "pgn.csv"})
+    # dataset = load_dataset("csv", data_files={"train": "pgn.csv"}) # For local testing
 
     dataset_path = "adamkarvonen/chess_games"
     file_path = "lichess_6gb_blocks.zip"
@@ -29,7 +28,7 @@ if __name__ == "__main__":
     # Load the dataset
     dataset = load_dataset(dataset_path, data_files=file_path)
 
-    # owt by default only contains the 'train' split, so create a test split
+    # by default only contains the 'train' split, so create a test split
     split_dataset = dataset["train"].train_test_split(
         test_size=0.01, seed=2357, shuffle=True
     )
@@ -48,7 +47,7 @@ if __name__ == "__main__":
     #     })
     # })
 
-    # we now want to tokenize the dataset. first define the encoding function (gpt2 bpe)
+    # we now want to tokenize the dataset. Using meta.pkl in the same directory as this file
     meta_path = os.path.join(os.path.dirname(__file__), "meta.pkl")
     with open(meta_path, "rb") as f:
         meta = pickle.load(f)
@@ -56,15 +55,12 @@ if __name__ == "__main__":
     stoi = meta["stoi"]
     itos = meta["itos"]
 
-    # train.bin is ~17GB, val.bin ~8.5MB
-    # train has ~9B tokens (9,035,582,198)
-    # val has ~4M tokens (4,434,897)
-
     # to read the bin files later, e.g. with numpy:
-    # m = np.memmap('train.bin', dtype=np.uint16, mode='r')
+    # m = np.memmap('train.bin', dtype=np.uint8, mode='r')
     # print(split_dataset["val"][0])
     # print(len(split_dataset["val"]["transcript"][0]))
 
+    # For verifying that all games are 1024 tokens long
     # for game in split_dataset["train"]["transcript"]:
     #     if len(game) != 1024:
     #         print(len(game))
