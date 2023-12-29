@@ -64,11 +64,11 @@ if __name__ == "__main__":
     # print(split_dataset["val"][0])
     # print(len(split_dataset["val"]["transcript"][0]))
 
-    for game in split_dataset["train"]["transcript"]:
-        if len(game) != 1024:
-            print(len(game))
-            print(game)
-            break
+    # for game in split_dataset["train"]["transcript"]:
+    #     if len(game) != 1024:
+    #         print(len(game))
+    #         print(game)
+    #         break
     # print(stoi)
 
     column_name = "transcript"
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         dtype = np.uint8  # (can do since enc.max_token_value == 50256 is < 2**16)
         arr = np.memmap(filename, dtype=dtype, mode="w+", shape=(arr_len,))
         print(arr.shape)
-        total_batches = 2
+        total_batches = 1024
 
         idx = 0
         for batch_idx in tqdm(range(total_batches), desc=f"writing {filename}"):
