@@ -2,13 +2,25 @@
 
 ```
 pip install torch numpy transformers datasets tiktoken wandb tqdm
-wandb login xxxx (xxxx = auth token, find it at wandb.ai/authorize)
-python data/shakespeare_char/prepare.py
+wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorize Otherwise, send wandb_logging to False
+python data/lichess_hf_dataset/prepare.py
 python train.py config/train_shakespeare_char.py
 python sample.py --out_dir=out-shakespeare-char
 ```
 
+In lichess_hf_dataset, you can modify this line:
+
+`file_path = "lichess_6gb_blocks.zip"`
+
+To the dataset of your choice located here: https://huggingface.co/datasets/adamkarvonen/chess_games/tree/main
+
 To sample on Mac, uncomment line 21 in sample.py. To train on Mac, rename `train_shakespeare_char_mac.py` to `train_shakespeare_char.py`.
+
+This nanoGPT repo is almost identical to the original nanoGPT repo. I made some logging changes, stored my training data in int8 instead of int16 due to a smaller vocab size, and modified get_batch(). My hugging face datasets are collections of length 1024 blocks. Every block begins with ";", my delimiter token. For example, ";1.e4 e5 2.Nf3 ...". I modified get_batch() to ensure that the beginning of every one of the inputs the model sees is the beginning of one of my blocks.
+
+After running `prepare.py`, you can also run `get_batch.ipynb` to ensure that every batch begins with ";1.", which corresponds to to encoded integers [15,  6,  4].
+
+Wandb loss curves and model configs can be viewed here: https://api.wandb.ai/links/adam-karvonen/u783xspb
 
 # nanoGPT
 
