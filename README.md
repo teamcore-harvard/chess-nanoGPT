@@ -2,9 +2,13 @@
 
 ```
 pip install torch numpy transformers datasets tiktoken wandb tqdm
-wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorize Otherwise, send wandb_logging to False
-python data/lichess_hf_dataset/prepare.py
-python train.py config/train_shakespeare_char.py
+wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorize Otherwise, send wandb_log to False in config file (see config path belowq)
+python data/lichess_hf_dataset/prepare_elo_bins.py
+
+python train.py config/train_600_1100.py
+python train.py config/train_1100_1500.py
+python train.py config/train_1500_1900.py
+
 python sample.py --out_dir=out-shakespeare-char
 ```
 
@@ -18,7 +22,7 @@ To sample on Mac, uncomment line 21 in sample.py. To train on Mac, rename `train
 
 This nanoGPT repo is almost identical to the original nanoGPT repo. I made some logging changes, stored my training data in int8 instead of int16 due to a smaller vocab size, and modified get_batch(). My hugging face datasets are collections of length 1024 blocks. Every block begins with ";", my delimiter token. For example, ";1.e4 e5 2.Nf3 ...". I modified get_batch() to ensure that the beginning of every one of the inputs the model sees is the beginning of one of my blocks.
 
-After running `prepare.py`, you can also run `get_batch.ipynb` to ensure that every batch begins with ";1.", which corresponds to to encoded integers [15,  6,  4].
+After running `prepare.py`, you can also run `get_batch.ipynb` to ensure that every batch begins with ";1.", which corresponds to to encoded integers [15, 6, 4].
 
 Wandb loss curves and model configs can be viewed here: https://api.wandb.ai/links/adam-karvonen/u783xspb
 
@@ -42,11 +46,11 @@ Dependencies:
 
 - [pytorch](https://pytorch.org) <3
 - [numpy](https://numpy.org/install/) <3
--  `transformers` for huggingface transformers <3 (to load GPT-2 checkpoints)
--  `datasets` for huggingface datasets <3 (if you want to download + preprocess OpenWebText)
--  `tiktoken` for OpenAI's fast BPE code <3
--  `wandb` for optional logging <3
--  `tqdm` for progress bars <3
+- `transformers` for huggingface transformers <3 (to load GPT-2 checkpoints)
+- `datasets` for huggingface datasets <3 (if you want to download + preprocess OpenWebText)
+- `tiktoken` for OpenAI's fast BPE code <3
+- `wandb` for optional logging <3
+- `tqdm` for progress bars <3
 
 ## quick start
 
@@ -93,7 +97,7 @@ That I leave, to fight with over-liking
 Hasting in a roseman.
 ```
 
-lol  `¯\_(ツ)_/¯`. Not bad for a character-level model after 3 minutes of training on a GPU. Better results are quite likely obtainable by instead finetuning a pretrained GPT-2 model on this dataset (see finetuning section later).
+lol `¯\_(ツ)_/¯`. Not bad for a character-level model after 3 minutes of training on a GPU. Better results are quite likely obtainable by instead finetuning a pretrained GPT-2 model on this dataset (see finetuning section later).
 
 **I only have a macbook** (or other cheap computer). No worries, we can still train a GPT but we want to dial things down a notch. I recommend getting the bleeding edge PyTorch nightly ([select it here](https://pytorch.org/get-started/locally/) when installing) as it is currently quite likely to make your code more efficient. But even without it, a simple train run could look as follows:
 
@@ -106,6 +110,7 @@ Here, since we are running on CPU instead of GPU we must set both `--device=cpu`
 ```
 $ python sample.py --out_dir=out-shakespeare-char --device=cpu
 ```
+
 Generates samples like this:
 
 ```
@@ -118,7 +123,7 @@ No relving thee post mose the wear
 
 Not bad for ~3 minutes on a CPU, for a hint of the right character gestalt. If you're willing to wait longer, feel free to tune the hyperparameters, increase the size of the network, the context length (`--block_size`), the length of training, etc.
 
-Finally, on Apple Silicon Macbooks and with a recent PyTorch version make sure to add `--device=mps` (short for "Metal Performance Shaders"); PyTorch then uses the on-chip GPU that can *significantly* accelerate training (2-3X) and allow you to use larger networks. See [Issue 28](https://github.com/karpathy/nanoGPT/issues/28) for more.
+Finally, on Apple Silicon Macbooks and with a recent PyTorch version make sure to add `--device=mps` (short for "Metal Performance Shaders"); PyTorch then uses the on-chip GPU that can _significantly_ accelerate training (2-3X) and allow you to use larger networks. See [Issue 28](https://github.com/karpathy/nanoGPT/issues/28) for more.
 
 ## reproducing GPT-2
 
@@ -162,12 +167,12 @@ $ python train.py eval_gpt2_xl
 
 and observe the following losses on train and val:
 
-| model | params | train loss | val loss |
-| ------| ------ | ---------- | -------- |
-| gpt2 | 124M         | 3.11  | 3.12     |
-| gpt2-medium | 350M  | 2.85  | 2.84     |
-| gpt2-large | 774M   | 2.66  | 2.67     |
-| gpt2-xl | 1558M     | 2.56  | 2.54     |
+| model       | params | train loss | val loss |
+| ----------- | ------ | ---------- | -------- |
+| gpt2        | 124M   | 3.11       | 3.12     |
+| gpt2-medium | 350M   | 2.85       | 2.84     |
+| gpt2-large  | 774M   | 2.66       | 2.67     |
+| gpt2-xl     | 1558M  | 2.56       | 2.54     |
 
 However, we have to note that GPT-2 was trained on (closed, never released) WebText, while OpenWebText is just a best-effort open reproduction of this dataset. This means there is a dataset domain gap. Indeed, taking the GPT-2 (124M) checkpoint and finetuning on OWT directly for a while reaches loss down to ~2.85. This then becomes the more appropriate baseline w.r.t. reproduction.
 

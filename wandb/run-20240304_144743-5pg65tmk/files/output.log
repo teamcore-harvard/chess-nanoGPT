@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/home/ezipe/git/chess_transformer_mothership/chess-nanoGPT/train.py", line 269, in <module>
+    losses = estimate_loss()
+             ^^^^^^^^^^^^^^^
+  File "/home/ezipe/git/chess_transformer_mothership/chess-nanoGPT/venv/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ezipe/git/chess_transformer_mothership/chess-nanoGPT/train.py", line 230, in estimate_loss
+    losses[k] = loss.item()
+                ^^^^^^^^^^^
+KeyboardInterrupt
