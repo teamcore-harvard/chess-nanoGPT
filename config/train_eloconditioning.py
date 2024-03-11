@@ -37,3 +37,4 @@ compile = False
 # on macbook also add
 # device = 'cpu'  # run on cpu only
 # compile = False # do not torch compile the model
+ELO_CONDITION = True

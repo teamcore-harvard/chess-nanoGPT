@@ -17,7 +17,7 @@ dtype = np.uint8  # Currently there are only 32 tokens in the chess LLMs vocab
 # best number might be different from num_proc above as it also depends on NW speed.
 # it is better than 1 usually though
 num_proc_load_dataset = num_proc
-ELO_CONDITION = True
+ELO_CONDITION = False
 if __name__ == "__main__":
     # dataset = load_dataset("csv", data_files={"train": "pgn.csv"}) # For local testing
 
