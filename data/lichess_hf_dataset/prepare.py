@@ -17,17 +17,22 @@ dtype = np.uint8  # Currently there are only 32 tokens in the chess LLMs vocab
 # best number might be different from num_proc above as it also depends on NW speed.
 # it is better than 1 usually though
 num_proc_load_dataset = num_proc
-
+ELO_CONDITION = True
 if __name__ == "__main__":
     # dataset = load_dataset("csv", data_files={"train": "pgn.csv"}) # For local testing
 
     dataset_path = "adamkarvonen/chess_games"
     file_path = "lichess_6gb_blocks.zip"
     # file_path = "smaller_pgn_file_blocks.zip"
-
+    if ELO_CONDITION:
+        file_path = "lichess_6gb.zip"
     # Load the dataset
     dataset = load_dataset(dataset_path, data_files=file_path)
-
+    if ELO_CONDITION:
+        def add_prefix(example):
+            example['transcript'] = f'{example['WhiteElo']} {example['BlackElo']} {example['transcript']}'
+            return example
+        dataset = dataset.map(add_prefix, num_proc=96)
     # by default only contains the 'train' split, so create a test split
     split_dataset = dataset["train"].train_test_split(
         test_size=0.01, seed=2357, shuffle=True
@@ -90,6 +95,8 @@ if __name__ == "__main__":
         arr_len = np.sum(dset["len"], dtype=np.uint64)
         print(f"{split} has {arr_len} tokens")
         filename = os.path.join(os.path.dirname(__file__), f"{split}.bin")
+        if ELO_CONDITION:
+            filename = os.path.join(os.path.dirname(__file__), f"{split}_elocondition.bin")
         arr = np.memmap(filename, dtype=dtype, mode="w+", shape=(arr_len,))
         print(arr.shape)
         total_batches = 1024
