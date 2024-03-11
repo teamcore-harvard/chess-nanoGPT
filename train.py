@@ -79,8 +79,7 @@ config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # -----------------------------------------------------------------------------
 low_elo = 600
 high_elo = 1100
-
-
+no_binning = False
 
 # various inits, derived attributes, I/O setup
 ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
@@ -117,15 +116,27 @@ ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=
 
 # poor man's data loader
 data_dir = os.path.join('data', dataset)
-# train_data = np.memmap(os.path.join(data_dir, f'train.bin'), dtype=np.uint8, mode='r')
-# val_data = np.memmap(os.path.join(data_dir, f'val.bin'), dtype=np.uint8, mode='r')
-train_data = np.memmap(os.path.join(data_dir, f'train_{low_elo}_{high_elo}.bin'), dtype=np.uint8, mode='r')
-val_data = np.memmap(os.path.join(data_dir, f'val_{low_elo}_{high_elo}.bin'), dtype=np.uint8, mode='r')
 def get_batch(split):
-    data = train_data if split == 'train' else val_data
-    # ix = torch.randint(len(data) - block_size, (batch_size,))
-    # Ensure the starting index is a multiple of block_size
-    ix = torch.randint(0, len(data) // (block_size + 1), (batch_size,)) * (block_size + 1)
+    # We recreate np.memmap every batch to avoid a memory leak, as per
+    # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
+    #! TODO check if this is really necessary, or if we can just load the data once outside of this function
+    if no_binning:
+        suffix = ''
+    else:
+        suffix = f'_{low_elo}_{high_elo}'
+    if split == 'train':
+        data = np.memmap(
+            os.path.join(data_dir, f"train{suffix}.bin"),
+            dtype=np.uint16,
+            mode="r",
+        )
+    else:
+        data = np.memmap(
+            os.path.join(data_dir, f"val{suffix}.bin"),
+            dtype=np.uint16,
+            mode="r",
+        )
+    ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
     y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
     if device_type == 'cuda':

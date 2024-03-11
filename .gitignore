@@ -11,3 +11,5 @@ input.txt
 venv
 slurm/
 wandb/
+env/
+venv/
