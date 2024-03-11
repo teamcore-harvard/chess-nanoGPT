@@ -79,7 +79,7 @@ config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # -----------------------------------------------------------------------------
 low_elo = 600
 high_elo = 1100
-
+no_binning = False
 
 # various inits, derived attributes, I/O setup
 ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
@@ -120,15 +120,19 @@ def get_batch(split):
     # We recreate np.memmap every batch to avoid a memory leak, as per
     # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
     #! TODO check if this is really necessary, or if we can just load the data once outside of this function
+    if no_binning:
+        suffix = ''
+    else:
+        suffix = f'_{low_elo}_{high_elo}'
     if split == 'train':
         data = np.memmap(
-            os.path.join(data_dir, f"train_{low_elo}_{high_elo}.bin"),
+            os.path.join(data_dir, f"train{suffix}.bin"),
             dtype=np.uint16,
             mode="r",
         )
     else:
         data = np.memmap(
-            os.path.join(data_dir, f"val_{low_elo}_{high_elo}.bin"),
+            os.path.join(data_dir, f"val{suffix}.bin"),
             dtype=np.uint16,
             mode="r",
         )
