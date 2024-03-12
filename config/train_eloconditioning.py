@@ -17,7 +17,7 @@ wandb_run_name = 'chess-elocondition'
 # 3 * 12 batch size * 1024 block size * 2 gradaccum * 8 GPUs = 589,824 = ~.6M batch size
 dataset = 'lichess_hf_dataset'
 gradient_accumulation_steps = 1
-batch_size = 72
+batch_size = 64
 block_size = 1023 # context of up to 256 previous characters
 
 # baby GPT model :)
