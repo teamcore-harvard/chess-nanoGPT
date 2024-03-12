@@ -13,3 +13,5 @@ slurm/
 wandb/
 env/
 venv/
+wandb
+*.bak
