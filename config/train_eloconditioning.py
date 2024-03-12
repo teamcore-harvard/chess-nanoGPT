@@ -13,9 +13,11 @@ wandb_log = True # override via command line if you like
 wandb_project = 'chess-gpt-batch'
 wandb_run_name = 'chess-elocondition'
 
+
+# 3 * 12 batch size * 1024 block size * 2 gradaccum * 8 GPUs = 589,824 = ~.6M batch size
 dataset = 'lichess_hf_dataset'
 gradient_accumulation_steps = 1
-batch_size = 20
+batch_size = 72
 block_size = 1023 # context of up to 256 previous characters
 
 # baby GPT model :)

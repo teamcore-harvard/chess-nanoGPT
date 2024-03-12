@@ -13,6 +13,8 @@ python train.py config/train_1500_1900.py
 python sample.py --out_dir=out-shakespeare-char
 ```
 
+Training on multiple gpus: `torchrun --standalone --nproc_per_node=8 train.py  config/train_eloconditioning.py --gradient_accumulation_steps=8`
+
 In lichess_hf_dataset, you can modify this line:
 
 `file_path = "lichess_6gb_blocks.zip"`
