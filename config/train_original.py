@@ -11,7 +11,7 @@ always_save_checkpoint = True
 
 wandb_log = True # override via command line if you like
 wandb_project = 'chess-gpt-batch'
-wandb_run_name = 'Razor-new'
+wandb_run_name = 'chess-original'
 
 dataset = 'lichess_hf_dataset'
 gradient_accumulation_steps = 1
@@ -31,7 +31,7 @@ min_lr = 3e-5 # learning_rate / 10 usually
 beta2 = 0.95 # make a bit bigger because number of tokens per iter is small
 
 no_binning = True
-warmup_iters = 10000 # not super necessary potentially
+warmup_iters = 50 # not super necessary potentially
 compile = True
 
 # on macbook also add

@@ -7,6 +7,7 @@ import numpy as np
 import tiktoken
 from datasets import load_dataset  # huggingface datasets
 import pickle
+from collections import deque
 import multiprocessing
 # number of workers in .map() call
 # good number to use is ~order number of cpu cores // 2
@@ -18,16 +19,84 @@ dtype = np.uint8  # Currently there are only 32 tokens in the chess LLMs vocab
 # it is better than 1 usually though
 num_proc_load_dataset = num_proc
 
+def elo_condition_process(dataset):
+    
+    def trunc(eg):
+        eg['transcript'] = f"{eg['WhiteElo']:04} {eg['BlackElo']:04} {eg['transcript'][:1013]}"        
+        return eg
+        
+    print('truncating and adding elo conditioning...')
+    truncated = dataset.map(trunc, num_proc=num_proc)    
+    print('truncated', truncated)
+    print('truncated and added!')
+
+    BATCH_SIZE = int(1e5)
+    def chunk(df):
+        kappa = 0
+        # Prepare the new dataset for blocks
+        blocks = []
+        remaining_games = deque(df['transcript'])  # Use deque for efficient pops from the left
+
+        # Block size limit
+        block_size = 1024
+
+        # Initialize the progress bar
+        while remaining_games:
+            block = ';'
+            # Select the next game
+            next_game = remaining_games.pop()
+            block += next_game
+            while len(block) < block_size and remaining_games:
+                # if len(df) > 21:
+                #     random_idx = random.randint(0, 20)
+                #     next_game = remaining_games[random_idx]
+                #     remaining_games[random_idx] = ""
+                # else:
+                next_game = remaining_games.popleft()
+                block += ';' + next_game
+                if len(block) > block_size:
+                    # If the game makes the block too long, re-add it to the dataset
+                    if len(remaining_games) > 100:
+                        remaining_games.insert(99, next_game)
+                    else:
+                        break
+                    break
+
+            if len(block) >= block_size:
+                # Add the block to the blocks list
+                blocks.append(block[:block_size])
+
+        
+        # Create a new DataFrame for the blocks
+            #     print(e)
+        return {'transcript': blocks}
+
+    print('chunking...')
+    chunked = truncated.map(chunk, batched=True, remove_columns=truncated['train'].column_names, batch_size=BATCH_SIZE, num_proc=96)
+    print('chunked dataset:', chunked)
+    print('chunked!')
+    def assert_1024(eg):
+        zeta = 0
+        if len(eg['transcript']) != 1024:
+            print('Error! Something is wrong with chunking...there is a chunk that is not 1024 length')        
+            
+    chunked.filter(assert_1024, num_proc=num_proc)
+    print('chunking test passed!')
+    
+    return chunked
+
+# print(len(k['transcript'][0]))
+# k['transcript']
 if __name__ == "__main__":
     # dataset = load_dataset("csv", data_files={"train": "pgn.csv"}) # For local testing
 
     dataset_path = "adamkarvonen/chess_games"
-    file_path = "lichess_6gb_blocks.zip"
+    file_path = "lichess_6gb.zip" #!! modification from original prepare
     # file_path = "smaller_pgn_file_blocks.zip"
 
     # Load the dataset
     dataset = load_dataset(dataset_path, data_files=file_path)
-
+    dataset = elo_condition_process(dataset) #!! modification from original prepare
     # by default only contains the 'train' split, so create a test split
     split_dataset = dataset["train"].train_test_split(
         test_size=0.01, seed=2357, shuffle=True
@@ -89,7 +158,7 @@ if __name__ == "__main__":
     for split, dset in tokenized.items():
         arr_len = np.sum(dset["len"], dtype=np.uint64)
         print(f"{split} has {arr_len} tokens")
-        filename = os.path.join(os.path.dirname(__file__), f"{split}.bin")
+        filename = os.path.join(os.path.dirname(__file__), f"{split}_elocondition.bin")
         arr = np.memmap(filename, dtype=dtype, mode="w+", shape=(arr_len,))
         print(arr.shape)
         total_batches = 1024

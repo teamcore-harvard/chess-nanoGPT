@@ -131,13 +131,13 @@ def get_batch(split):
     if split == 'train':
         data = np.memmap(
             os.path.join(data_dir, f"train{suffix}.bin"),
-            dtype=np.uint16,
+            dtype=np.uint8,
             mode="r",
         )
     else:
         data = np.memmap(
             os.path.join(data_dir, f"val{suffix}.bin"),
-            dtype=np.uint16,
+            dtype=np.uint8,
             mode="r",
         )
     ix = torch.randint(len(data) - block_size, (batch_size,))
