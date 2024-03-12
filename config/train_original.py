@@ -32,7 +32,7 @@ beta2 = 0.95 # make a bit bigger because number of tokens per iter is small
 
 no_binning = True
 warmup_iters = 10000 # not super necessary potentially
-compile = False
+compile = True
 
 # on macbook also add
 # device = 'cpu'  # run on cpu only

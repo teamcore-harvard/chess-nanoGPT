@@ -1,38 +1,42 @@
 # saves the openwebtext dataset to a binary file for training. following was helpful:
 # https://github.com/HazyResearch/flash-attention/blob/main/training/src/datamodules/language_modeling_hf.py
 
+import argparse
 import os
 from tqdm import tqdm
 import numpy as np
 import tiktoken
 from datasets import load_dataset  # huggingface datasets
 import pickle
+import multiprocessing
 
 # number of workers in .map() call
 # good number to use is ~order number of cpu cores // 2
-num_proc = 8
+num_proc = multiprocessing.cpu_count()
 dtype = np.uint8  # Currently there are only 32 tokens in the chess LLMs vocab
 
 # number of workers in load_dataset() call
 # best number might be different from num_proc above as it also depends on NW speed.
 # it is better than 1 usually though
 num_proc_load_dataset = num_proc
-ELO_CONDITION = False
 if __name__ == "__main__":
     # dataset = load_dataset("csv", data_files={"train": "pgn.csv"}) # For local testing
-
+    parser = argparse.ArgumentParser(description='prepare data')
+    parser.add_argument("--elo-condition", action="store_true", default=False)
+    args = parser.parse_args()
+    
     dataset_path = "adamkarvonen/chess_games"
     file_path = "lichess_6gb_blocks.zip"
     # file_path = "smaller_pgn_file_blocks.zip"
-    if ELO_CONDITION:
+    if args.elo_condition:
         file_path = "lichess_6gb.zip"
     # Load the dataset
     dataset = load_dataset(dataset_path, data_files=file_path)
-    if ELO_CONDITION:
+    if args.elo_condition:
         def add_prefix(example):
-            example['transcript'] = f'{example['WhiteElo']} {example['BlackElo']} {example['transcript']}'
+            example['transcript'] = f"{example['WhiteElo']} {example['BlackElo']} {example['transcript']}"
             return example
-        dataset = dataset.map(add_prefix, num_proc=96)
+        dataset = dataset.map(add_prefix, num_proc=num_proc)
     # by default only contains the 'train' split, so create a test split
     split_dataset = dataset["train"].train_test_split(
         test_size=0.01, seed=2357, shuffle=True
@@ -95,7 +99,7 @@ if __name__ == "__main__":
         arr_len = np.sum(dset["len"], dtype=np.uint64)
         print(f"{split} has {arr_len} tokens")
         filename = os.path.join(os.path.dirname(__file__), f"{split}.bin")
-        if ELO_CONDITION:
+        if args.elo_condition:
             filename = os.path.join(os.path.dirname(__file__), f"{split}_elocondition.bin")
         arr = np.memmap(filename, dtype=dtype, mode="w+", shape=(arr_len,))
         print(arr.shape)
