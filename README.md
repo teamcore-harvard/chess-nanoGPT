@@ -1,7 +1,7 @@
 # QUICKSTART
 
 ```
-pip install torch numpy transformers datasets tiktoken wandb tqdm
+pip install torch numpy transformers datasets tiktoken wandb tqdm zstandard python-chess
 wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorize Otherwise, send wandb_log to False in config file (see config path belowq)
 python data/lichess_hf_dataset/prepare_elo_bins.py
 
