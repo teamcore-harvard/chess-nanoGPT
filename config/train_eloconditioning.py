@@ -9,7 +9,7 @@ log_interval = 100 # don't print too too often
 # we expect to overfit on this small dataset, so only save when val improves
 always_save_checkpoint = True
 
-wandb_log = False # override via command line if you like
+wandb_log = True # override via command line if you like
 wandb_project = 'chess-gpt-batch'
 wandb_run_name = 'chess-elocondition'
 
