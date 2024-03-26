@@ -22,6 +22,7 @@ import os
 import re
 import time
 from typing import Optional, List
+import torch
 from torch.utils.data import IterableDataset
 import tqdm
 import zstandard
@@ -43,44 +44,8 @@ import re
 import zstandard
 import io
 import time 
+import random
 
-
-# def create_tokenizer() -> Tokenizer:
-#     s = '''
-#     1. e2e4P c7c6p 2. d2d4P d7d5p 3. b1d2N d5e4p 4. d2e4N g8f6n 5. e4f6N e7f6p 6. g1f3N f8d6b 7. f1d3B e8g8k 8. e1g1K c8g4b 9. c1e3B f8e8r 10. h2h3P g4h5b 11. d3e2B b8d7n 12. f3d2N h5e2b 13. d1e2Q d6f4b 14. e2f3Q f4e3b 15. f2e3P d8c7q 16. d2e4N e8e7r 17. e4g3N a8e8r 18. g3f5N e7e6r 19. a1e1R g7g6p 20. f5g3N e6e3r 21. e1e3R e8e3r 22. f3e3Q d7b6n 23. f1e1R b6d5n 24. e3e8Q g8g7k 25. e8e4Q c7g3q 26. e1e3R d5e3n 0-1
-#     '''
-
-#     tokenizer = Tokenizer(models.Model())
-#     # tokenizer.normalizer = normalizers.Sequence(
-#     #     [normalizers.NFD(), normalizers.Lowercase(),
-#     #      normalizers.Replace(Regex('\d+\.'), '[MOVE]')
-
-#     #      ]
-#     # )
-
-#     tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
-#         [pre_tokenizers.WhitespaceSplit()]
-#     )
-
-#     board_positions = list(itertools.product('abcdefgh', '12345678'))
-#     pieces = ['K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'] 
-#     tokenizer.add_tokens(
-#         [
-#             *[''.join(x) for x in board_positions],
-#             *pieces
-#         ]
-#     )
-
-#     tokenizer.add_special_tokens(
-#         ["[MOVE]", "[UNK]", "[MASK]"]
-#     )
-
-#     print('Tokenizer vocab size:', tokenizer.get_vocab_size())
-#     print('Testing encoding...')
-#     encoding: Encoding = tokenizer.encode(s)
-#     print(encoding)
-#     print('Passed!')
-#     return tokenizer
 
 def process_wrapper():
     vocab = '#+-.0123456789;=BKNOQRabcdefghx '
@@ -105,50 +70,86 @@ def process_wrapper():
         return res
     return process
 
+
+
+def calculate_split(total_splits, total_len, index):
+    # Calculate the length of each split
+    split_length = total_len // total_splits
+    
+    # Calculate the start and end indices of the split
+    start_index = index * split_length
+    end_index = start_index + split_length
+    
+    # Adjust the end index if the split is not evenly divided
+    if index == total_splits - 1:
+        end_index = total_len
+    
+    return start_index, end_index
+
+
     
 class StreamingPGNDataset(IterableDataset):
-    def __init__(self, file_path, transform=None):
-        self.file_path = file_path
-        self.transform = transform
+    def __init__(self, file_paths, seed=42):
+        self.set_file_paths(file_paths, seed)
+        
         self.process = process_wrapper()
-
+        
+    def set_file_paths(self, file_paths, seed):
+        self.file_paths = file_paths
+        self.rng = random.Random(seed)
+        self.rng.shuffle(self.file_paths)        
 
     def read_game(self):
-        dctx = zstandard.ZstdDecompressor()        
-        with open(self.file_path, 'rb') as pgn_file:
-            stream_reader = dctx.stream_reader(pgn_file)
-            text_stream = io.TextIOWrapper(stream_reader, encoding='utf-8')
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None: #multiprocessing
+            assert worker_info.num_workers <= len(self.file_paths), f'Num workers {worker_info.num_workers} greater than number of files {len(self.file_paths)}.'
+            start, end = calculate_split(worker_info.num_workers, len(self.file_paths), worker_info.id)
+            self.file_paths = self.file_paths[start:end]
             
-            fg = ""
-            while True:
+        def game_generator(path):
+            dctx = zstandard.ZstdDecompressor()        
+            with open(path, 'rb') as pgn_file:
+                stream_reader = dctx.stream_reader(pgn_file)
+                text_stream = io.TextIOWrapper(stream_reader, encoding='utf-8')
+                
+                fg = ""
                 for i in text_stream:
-                    yield i                        
-                    # fg += i
+                    # yield i                        
+                    fg += i
                     if i.startswith('1. '):
                         game = self.process(fg)
                         fg = ""
                         yield game
-                        
-                raise StopIteration
-
+        
+        gen = [game_generator(file) for file in self.file_paths]
+        i = 0
+        while len(gen) > 0:
+            try:
+                game = next(gen[i % len(gen)])
+                # if game.get('WhiteElo') is None or game.get('BlackElo') is None or game.get('transcript') is None:
+                #     continue
+            except StopIteration:
+                del gen[i % len(gen)]
+                continue
+            
+            yield game            
                 
             # parse txt 
     def __iter__(self):
-        return iter(self.read_game())
+        return self.read_game()
 
 
     
 class StreamingBlockPGNDataset(StreamingPGNDataset):
-    def __init__(self, file_path, transform=None, block_size=1024):
-        self.file_path = file_path
-        self.transform = transform
+    def __init__(self, file_paths, seed=42, block_size=1024):
+        self.set_file_paths(file_paths, seed)
         self.process = process_wrapper()
         self.block_size = block_size
         self.tokenizer = {'vocab_size': 32, 'itos': {0: ' ', 1: '#', 2: '+', 3: '-', 4: '.', 5: '0', 6: '1', 7: '2', 8: '3', 9: '4', 10: '5', 11: '6', 12: '7', 13: '8', 14: '9', 15: ';', 16: '=', 17: 'B', 18: 'K', 19: 'N', 20: 'O', 21: 'Q', 22: 'R', 23: 'a', 24: 'b', 25: 'c', 26: 'd', 27: 'e', 28: 'f', 29: 'g', 30: 'h', 31: 'x'}, 'stoi': {' ': 0, '#': 1, '+': 2, '-': 3, '.': 4, '0': 5, '1': 6, '2': 7, '3': 8, '4': 9, '5': 10, '6': 11, '7': 12, '8': 13, '9': 14, ';': 15, '=': 16, 'B': 17, 'K': 18, 'N': 19, 'O': 20, 'Q': 21, 'R': 22, 'a': 23, 'b': 24, 'c': 25, 'd': 26, 'e': 27, 'f': 28, 'g': 29, 'h': 30, 'x': 31}}
 
 
     def read_game_block(self):
-        ds = iter(self.read_game())
+        ds = self.read_game()
         game = None
         full_block = ""
         while True:
@@ -156,50 +157,54 @@ class StreamingBlockPGNDataset(StreamingPGNDataset):
                 full_block += f";{game['WhiteElo']} {game['BlackElo']} {game['transcript']}"
                 
             while len(full_block) < self.block_size:
-                game = next(ds)                
+                game = next(ds)   
+                # try:                             
                 full_block += f";{game['WhiteElo']} {game['BlackElo']} {game['transcript']}"
+                # except KeyError:
+                #     print(game)
+                #     raise KeyError
                 
             # add np array
             out = full_block[:self.block_size]            
             full_block = ""            
-            yield np.array([self.tokenizer['stoi'][c] for c in out], dtype=np.uint8)
+            yield np.array([self.tokenizer['stoi'][c] for c in out], dtype=np.int64)
             
                 
     def __iter__(self):
-        return iter(self.read_game_block())
-        
+        return self.read_game_block()
+
+# TODO add cycle across multiple files and huggingface dataloader (latter for mp)
+# takes around 30 minutes to cycle through a single dataset
+
 if __name__ == '__main__':
     
     ############
     # StreamingPGNDataset
     ############
-    ds = StreamingPGNDataset('/home/ezipe/git/transcendence/lichess-2023-janoct/lichess_db_standard_rated_2023-01.pgn.zst')    
+    ds = StreamingPGNDataset(['/mnt/data/lichess_2023_janoct_shards/data/lichess_db_standard_rated_2023-01.pgn.00.zst'])
     # ds = StreamingPGNDataset('/home/ezipe/git/transcendence/lichess-2023-janoct/test.pgn.zst')    
-    kk = tqdm.tqdm()
-    itr = iter(ds)
-    while True:
-    # next(itr)
-        z = next(itr)
-        kk.update()
-    print(z)
+    for k in tqdm.tqdm(ds):
+        pass
     
-    t = time.time()
-    itrs = 10000
-    for i in tqdm.tqdm(range(itrs)):
-        z = next(itr)
-    end = time.time() - t
+    # t = time.time()
+    # itrs = 10000
+    # for i in tqdm.tqdm(range(itrs)):
+    #     z = next(itr)
+    # end = time.time() - t
     
-    print(f'There are approximately 100M games per month...so this would take approximately {int(end * 1e8 / itrs / 60)} minutes to process the full month.')
+    # print(f'There are approximately 100M games per month...so this would take approximately {int(end * 1e8 / itrs / 60)} minutes to process the full month.')
 
     ############
     # StreamingBlockPGNDataset
     ############
 
-    ds_block = StreamingBlockPGNDataset('/home/ezipe/git/transcendence/lichess-2023-janoct/lichess_db_standard_rated_2023-01.pgn.zst')
+    data_dir = '/mnt/data/lichess_2023_janoct_shards/data/'
+    ds_block = torch.utils.data.DataLoader(StreamingBlockPGNDataset([os.path.join(data_dir, k) for k in os.listdir(data_dir)]), num_workers=47, batch_size=1024)
     itr_block = iter(ds_block)
     # next(itr_block)
     z = next(itr_block)
     print(z)
+    print(z.shape)
     
     t = time.time()
     itr_blocks = 1000000000000
@@ -208,7 +213,6 @@ if __name__ == '__main__':
     end = time.time() - t
     
     print(f'There are approximately 100M games per month...so this would take approximately {int(end * 1e8 / itr_blocks / 60)} minutes to process the full month.')
-
 
                 
 #####

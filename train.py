@@ -27,6 +27,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
+from data.zstd_process import StreamingBlockPGNDataset
 from model import GPTConfig, GPT
 
 # -----------------------------------------------------------------------------
@@ -116,39 +117,52 @@ device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.aut
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-# poor man's data loader
-data_dir = os.path.join('data', dataset)
-def get_batch(split):
-    # We recreate np.memmap every batch to avoid a memory leak, as per
-    # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
-    #! TODO check if this is really necessary, or if we can just load the data once outside of this function
-    if no_binning:
-        suffix = ''
-    else:
-        suffix = f'_{low_elo}_{high_elo}'
-    if ELO_CONDITION:
-        suffix = '_elocondition'
-    if split == 'train':
-        data = np.memmap(
-            os.path.join(data_dir, f"train{suffix}.bin"),
-            dtype=np.uint8,
-            mode="r",
-        )
-    else:
-        data = np.memmap(
-            os.path.join(data_dir, f"val{suffix}.bin"),
-            dtype=np.uint8,
-            mode="r",
-        )
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
-    y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
-    if device_type == 'cuda':
-        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
-    else:
-        x, y = x.to(device), y.to(device)
-    return x, y
+
+data_dir = os.path.join('data', 'lichess_hf_dataset')
+if ELO_CONDITION:
+    ds_block = iter(torch.utils.data.DataLoader(StreamingBlockPGNDataset([os.path.join(dataset, k) for k in os.listdir(dataset)]), num_workers=4, batch_size=batch_size))    
+    def get_batch(split):
+        data = next(ds_block)        
+        if device_type == 'cuda':
+            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+            data = data.pin_memory().to(device, non_blocking=True)
+        else:
+            data = data.to(device)
+        return data[:, :-1], data[:, 1:]
+    
+else:    
+    # poor man's data loader
+    def get_batch(split):
+        # We recreate np.memmap every batch to avoid a memory leak, as per
+        # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
+        #! TODO check if this is really necessary, or if we can just load the data once outside of this function
+        if no_binning:
+            suffix = ''
+        else:
+            suffix = f'_{low_elo}_{high_elo}'
+        if ELO_CONDITION:
+            suffix = '_elocondition'
+        if split == 'train':
+            data = np.memmap(
+                os.path.join(data_dir, f"train{suffix}.bin"),
+                dtype=np.uint8,
+                mode="r",
+            )
+        else:
+            data = np.memmap(
+                os.path.join(data_dir, f"val{suffix}.bin"),
+                dtype=np.uint8,
+                mode="r",
+            )
+        ix = torch.randint(len(data) - block_size, (batch_size,))
+        x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
+        y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
+        if device_type == 'cuda':
+            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+            x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
+        else:
+            x, y = x.to(device), y.to(device)
+        return x, y
 
 # init these up here, can override if init_from='resume' (i.e. from a checkpoint)
 iter_num = 0
