@@ -328,3 +328,47 @@ class GPT(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)
 
         return idx
+
+
+
+if __name__ == '__main__':
+    # Import the necessary torch version for this model.
+    # pip install torch==2.2.2
+
+    # Define a small, custom vocabulary to demonstrate functionality on chess.
+    # This dictionary includes mappings for a small set of chess symbols to their respective indices (stoi)
+    # and vice versa (itos), along with specifying the total number of unique tokens (vocab_size).
+    vocabulary_meaning = {
+        'vocab_size': 32,
+        'itos': {
+            0: ' ', 1: '#', 2: '+', 3: '-', 4: '.', 5: '0', 6: '1', 7: '2', 8: '3',
+            9: '4', 10: '5', 11: '6', 12: '7', 13: '8', 14: '9', 15: ';', 16: '=',
+            17: 'B', 18: 'K', 19: 'N', 20: 'O', 21: 'Q', 22: 'R', 23: 'a', 24: 'b',
+            25: 'c', 26: 'd', 27: 'e', 28: 'f', 29: 'g', 30: 'h', 31: 'x'
+        },
+        'stoi': {
+            ' ': 0, '#': 1, '+': 2, '-': 3, '.': 4, '0': 5, '1': 6, '2': 7, '3': 8,
+            '4': 9, '5': 10, '6': 11, '7': 12, '8': 13, '9': 14, ';': 15, '=': 16,
+            'B': 17, 'K': 18, 'N': 19, 'O': 20, 'Q': 21, 'R': 22, 'a': 23, 'b': 24,
+            'c': 25, 'd': 26, 'e': 27, 'f': 28, 'g': 29, 'h': 30, 'x': 31
+        }
+    }
+
+    # Create a GPT configuration object with the custom small chess vocabulary size.
+    gptconf = GPTConfig(vocab_size=32)
+
+    # Initialize the GPT model with the custom configuration.
+    model = GPT(gptconf)
+
+    # Define a test input tensor with a batch size of 3 and a sequence length of 3,
+    # containing indices that map to the custom vocabulary defined above.
+    test_input = torch.tensor([[0, 11, 31], [0, 1, 2], [3, 4, 1]], dtype=torch.int32)
+
+    # Pass the test input through the model to obtain logits (model predictions before applying softmax)
+    # and the loss value if a target were provided (None in this case as targets are not given).
+    logits, loss = model(test_input)
+
+    # Print the shape of the logits tensor to verify the output dimensions.
+    # Expected shape: (batch size, 1, vocab size), which would be (3, 1, 32) for this input. 
+    # We could then append this to the original input to perform autoregressive generation.
+    print(logits.shape)
