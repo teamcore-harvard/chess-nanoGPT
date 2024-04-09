@@ -281,7 +281,11 @@ while True:
 
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
-        losses = estimate_loss()
+        # losses = estimate_loss()
+        # commented out 284 and replaced it with 286 to 288 to speed up getting to the evaluation subprocess.
+        losses = {}
+        losses["train"] = 0.
+        losses["val"] = 0.
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
             wandb.log({
@@ -302,8 +306,13 @@ while True:
                     'best_val_loss': best_val_loss,
                     'config': config,
                 }
+                out_dir = 'out'
                 print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
+                weight_file = os.path.join(out_dir, f'ckpt_{iter_num}.pt')
+                torch.save(checkpoint, weight_file)
+                # Add a fork call to evaluation process
+                temperature = 0.01
+                os.system(f'/mnt/data/lichess_bot_eval_part_2/lichess-bot/venv/bin/python /mnt/data/lichess_bot_eval_part_2/lichess-bot/lichess-bot.py --weight_file {weight_file} --temperature {temperature} &')
     if iter_num == 0 and eval_only:
         break
 
