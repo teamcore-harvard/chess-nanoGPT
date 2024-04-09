@@ -1,7 +1,7 @@
 # train a miniature character-level shakespeare model
 # good for debugging and playing on macbooks and such
 
-out_dir = 'out-1100_1500'
+out_dir = 'out-shakespeare-char'
 eval_interval = 500 # keep frequent because we'll overfit
 eval_iters = 100
 log_interval = 100 # don't print too too often
@@ -11,12 +11,14 @@ always_save_checkpoint = True
 
 wandb_log = True # override via command line if you like
 wandb_project = 'chess-gpt-batch'
-wandb_run_name = 'chess_1100-1500_' + time.strftime("%Y-%m-%d_%H-%M-%S")
+wandb_run_name = 'chess-elocondition'
 
+
+# 3 * 12 batch size * 1024 block size * 2 gradaccum * 8 GPUs = 589,824 = ~.6M batch size
 dataset = 'lichess_hf_dataset'
 gradient_accumulation_steps = 1
-batch_size = 120
-block_size = 1024
+batch_size = 64
+block_size = 1023 # context of up to 256 previous characters
 
 # baby GPT model :)
 n_layer = 16
@@ -25,18 +27,16 @@ n_embd = 512
 dropout = 0.0
 
 learning_rate = 3e-4 # with baby networks can afford to go a bit higher
-max_iters = 5116 # 5116 * 1024 * 120 ~= 628,683,781 (1500-1900 Elo dataset size)
-lr_decay_iters = 5116 # make equal to max_iters usually
+max_iters = 4e6
+lr_decay_iters = 4e6 # make equal to max_iters usually
 min_lr = 3e-5 # learning_rate / 10 usually
 beta2 = 0.95 # make a bit bigger because number of tokens per iter is small
 
+no_binning = True
 warmup_iters = 50 # not super necessary potentially
 compile = True
-
-low_elo = 1100
-high_elo = 1500
-
 
 # on macbook also add
 # device = 'cpu'  # run on cpu only
 # compile = False # do not torch compile the model
+ELO_CONDITION = True

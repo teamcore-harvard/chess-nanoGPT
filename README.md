@@ -5,12 +5,15 @@ pip install torch numpy transformers datasets tiktoken wandb tqdm
 wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorize Otherwise, send wandb_log to False in config file (see config path belowq)
 python data/lichess_hf_dataset/prepare_elo_bins.py
 
+python train.py config/train_original.py # original model from adam karvonen
 python train.py config/train_600_1100.py
 python train.py config/train_1100_1500.py
 python train.py config/train_1500_1900.py
 
 python sample.py --out_dir=out-shakespeare-char
 ```
+
+Training on multiple gpus: `torchrun --standalone --nproc_per_node=8 train.py  config/train_eloconditioning.py --gradient_accumulation_steps=8`
 
 In lichess_hf_dataset, you can modify this line:
 
