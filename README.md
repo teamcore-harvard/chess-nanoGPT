@@ -2,7 +2,9 @@
 
 ```
 pip install torch numpy transformers datasets tiktoken wandb tqdm
-wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorize Otherwise, send wandb_log to False in config file (see config path belowq)
+wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorze Otherwise, send wandb_log to False in config file (see config path belowq)
+
+git lfs clone https://huggingface.co/datasets/ezipe/adam-chess-data
 python data/lichess_hf_dataset/prepare_elo_bins.py
 
 python train.py config/train_original.py # original model from adam karvonen

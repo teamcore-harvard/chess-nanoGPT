@@ -17,11 +17,13 @@ $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123
 """
 
 import os
+from pathlib import Path
+import subprocess
 import time
 import math
 import pickle
 from contextlib import nullcontext
-
+from subprocess import Popen
 import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -77,6 +79,7 @@ low_elo = 600
 high_elo = 1100
 no_binning = False
 ELO_CONDITION = False
+temperature = 0.01
 seed = 1337
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
@@ -272,6 +275,7 @@ t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
+evaluation_process = None
 while True:
 
     # determine and set the learning rate for this iteration
@@ -282,6 +286,9 @@ while True:
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
         losses = estimate_loss()
+        # losses = {}
+        # losses["train"] = 0.
+        # losses["val"] = 0.
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
             wandb.log({
@@ -302,8 +309,21 @@ while True:
                     'best_val_loss': best_val_loss,
                     'config': config,
                 }
+                out_dir = 'out'
                 print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
+                weight_file = os.path.join(out_dir, f'ckpt_{iter_num}.pt')
+                os.makedirs(out_dir, exist_ok=True)
+                torch.save(checkpoint, weight_file)
+                # Add a fork call to evaluation process
+                if evaluation_process is not None:
+                    evaluation_process.terminate()
+                    time.sleep(2)
+                    evaluation_process.kill()
+                
+                root_path = '/home/ezipe/chess_transformer_mothership/lichess-bot'
+                evaluation_process = subprocess.Popen(['bash', '-c', f"cd {root_path} && .venv/bin/python lichess-bot.py --weight_file {Path(weight_file).resolve()} --temperature {temperature}"])
+                
+                
     if iter_num == 0 and eval_only:
         break
 
