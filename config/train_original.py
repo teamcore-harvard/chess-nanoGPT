@@ -2,7 +2,7 @@
 # good for debugging and playing on macbooks and such
 
 out_dir = 'out-shakespeare-char'
-eval_interval = 500 # keep frequent because we'll overfit
+eval_interval = 1000 # keep frequent because we'll overfit
 eval_iters = 100
 log_interval = 100 # don't print too too often
 
@@ -15,7 +15,8 @@ wandb_run_name = 'chess-original'
 
 dataset = 'lichess_hf_dataset'
 gradient_accumulation_steps = 1
-batch_size = 20
+# batch_size = 20 # good for l4
+batch_size = 120 # good for a100
 block_size = 1023 # context of up to 256 previous characters
 
 # baby GPT model :)
@@ -35,5 +36,5 @@ warmup_iters = 50 # not super necessary potentially
 compile = True
 
 # on macbook also add
-device = 'cpu'  # run on cpu only
-compile = False # do not torch compile the model
+# device = 'cpu'  # run on cpu only
+# compile = False # do not torch compile the model
