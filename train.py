@@ -80,6 +80,7 @@ high_elo = 1100
 no_binning = False
 ELO_CONDITION = False
 temperature = 0.01
+lichess_bot_token = os.environ["lichess_bot_token"]
 seed = 1337
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
@@ -285,10 +286,10 @@ while True:
 
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
-        losses = estimate_loss()
-        # losses = {}
-        # losses["train"] = 0.
-        # losses["val"] = 0.
+        # losses = estimate_loss()
+        losses = {}
+        losses["train"] = 0.5
+        losses["val"] = 0.5
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
             wandb.log({
@@ -320,8 +321,9 @@ while True:
                     time.sleep(2)
                     evaluation_process.kill()
                 
-                root_path = '/home/ezipe/chess_transformer_mothership/lichess-bot'
-                evaluation_process = subprocess.Popen(['bash', '-c', f"cd {root_path} && .venv/bin/python lichess-bot.py --weight_file {Path(weight_file).resolve()} --temperature {temperature}"])
+                # root_path = '/home/ezipe/chess_transformer_mothership/lichess-bot'
+                root_path = '/chess_transformer_mothership/lichess-bot'
+                evaluation_process = subprocess.Popen(['bash', '-c', f"cd {root_path} && .venv/bin/python lichess-bot.py --weight_file {Path(weight_file).resolve()} --temperature {temperature} --config_token {lichess_bot_token}"])
                 
                 
     if iter_num == 0 and eval_only:

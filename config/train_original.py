@@ -2,7 +2,7 @@
 # good for debugging and playing on macbooks and such
 
 out_dir = 'out-shakespeare-char'
-eval_interval = 1000 # keep frequent because we'll overfit
+eval_interval = 10 # keep frequent because we'll overfit
 eval_iters = 100
 log_interval = 100 # don't print too too often
 
@@ -36,5 +36,5 @@ warmup_iters = 50 # not super necessary potentially
 compile = True
 
 # on macbook also add
-# device = 'cpu'  # run on cpu only
-# compile = False # do not torch compile the model
+device = 'cpu'  # run on cpu only
+compile = False # do not torch compile the model
