@@ -120,7 +120,7 @@ ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=
 
 data_dir = os.path.join('data', 'lichess_hf_dataset')
 if ELO_CONDITION:
-    ds_block = iter(torch.utils.data.DataLoader(StreamingBlockPGNDataset([os.path.join(dataset, k) for k in os.listdir(dataset)]), num_workers=4, batch_size=batch_size))    
+    ds_block = iter(torch.utils.data.DataLoader(StreamingBlockPGNDataset([os.path.join(dataset, k) for k in os.listdir(dataset)]), num_workers=0, batch_size=batch_size))    
     def get_batch(split):
         data = next(ds_block)        
         if device_type == 'cuda':

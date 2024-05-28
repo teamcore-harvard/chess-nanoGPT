@@ -15,7 +15,8 @@ wandb_run_name = 'chess-elocondition'
 
 
 # 3 * 12 batch size * 1024 block size * 2 gradaccum * 8 GPUs = 589,824 = ~.6M batch size
-dataset = '/mnt/data/lichess_2023_janoct_shards/data/'
+# dataset = '/mnt/data/lichess_2023_janoct_shards/data/'
+dataset = '/home/ezipe/chess_transformer_mothership/lichess_2023_janoct_shards/data/'
 gradient_accumulation_steps = 1
 batch_size = 16
 block_size = 1023 # context of up to 256 previous characters
@@ -37,6 +38,7 @@ warmup_iters = 50 # not super necessary potentially
 compile = True
 
 # on macbook also add
-# device = 'cpu'  # run on cpu only
-# compile = False # do not torch compile the model
+device = 'cpu'  # run on cpu only
+compile = False # do not torch compile the model
+wandb_log = False
 ELO_CONDITION = True

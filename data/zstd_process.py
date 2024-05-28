@@ -181,7 +181,8 @@ if __name__ == '__main__':
     ############
     # StreamingPGNDataset
     ############
-    ds = StreamingPGNDataset(['/mnt/data/lichess_2023_janoct_shards/data/lichess_db_standard_rated_2023-01.pgn.00.zst'])
+    # ds = StreamingPGNDataset(['/mnt/data/lichess_2023_janoct_shards/data/lichess_db_standard_rated_2023-01.pgn.00.zst'])
+    ds = StreamingPGNDataset(['/home/ezipe/chess_transformer_mothership/lichess_2023_janoct_shards/data/lichess_db_standard_rated_2023-01.pgn.00.zst'])
     # ds = StreamingPGNDataset('/home/ezipe/git/transcendence/lichess-2023-janoct/test.pgn.zst')    
     for k in tqdm.tqdm(ds):
         pass
@@ -198,7 +199,8 @@ if __name__ == '__main__':
     # StreamingBlockPGNDataset
     ############
 
-    data_dir = '/mnt/data/lichess_2023_janoct_shards/data/'
+    # data_dir = '/mnt/data/lichess_2023_janoct_shards/data/'
+    data_dir = '/home/ezipe/chess_transformer_mothership/lichess_2023_janoct_shards/data/'
     ds_block = torch.utils.data.DataLoader(StreamingBlockPGNDataset([os.path.join(data_dir, k) for k in os.listdir(data_dir)]), num_workers=47, batch_size=1024)
     itr_block = iter(ds_block)
     # next(itr_block)
