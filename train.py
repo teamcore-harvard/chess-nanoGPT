@@ -15,7 +15,8 @@ $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123
 $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py
 (If your cluster does not have Infiniband interconnect prepend NCCL_IB_DISABLE=1)
 """
-
+from dotenv import load_dotenv
+load_dotenv()
 import os
 from pathlib import Path
 import subprocess
@@ -28,7 +29,7 @@ import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
-
+from chess_eval import play_stockfish_with_nanogpt
 from model import GPTConfig, GPT
 
 # -----------------------------------------------------------------------------
@@ -80,13 +81,16 @@ high_elo = 1100
 no_binning = False
 ELO_CONDITION = False
 temperature = 0.01
-lichess_bot_token = os.environ["lichess_bot_token"]
+# lichess_bot_token = os.environ["lichess_bot_token"]
+betterstack_log = True
 seed = 1337
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # -----------------------------------------------------------------------------
+from eztils import datestr, wlog
+out_dir += '-' + datestr()
 # various inits, derived attributes, I/O setup
 ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
 if ddp:
@@ -291,40 +295,40 @@ while True:
         losses["train"] = 0.5
         losses["val"] = 0.5
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        if wandb_log:
-            wandb.log({
-                "iter": iter_num,
-                "train/loss": losses['train'],
-                "val/loss": losses['val'],
-                "lr": lr,
-                "mfu": running_mfu*100, # convert to percentage
-            })
-        if losses['val'] < best_val_loss or always_save_checkpoint:
-            best_val_loss = losses['val']
-            if iter_num > 0:
-                checkpoint = {
-                    'model': raw_model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'model_args': model_args,
-                    'iter_num': iter_num,
-                    'best_val_loss': best_val_loss,
-                    'config': config,
-                }
-                out_dir = 'out'
-                print(f"saving checkpoint to {out_dir}")
-                weight_file = os.path.join(out_dir, f'ckpt_{iter_num}.pt')
-                os.makedirs(out_dir, exist_ok=True)
-                torch.save(checkpoint, weight_file)
-                # Add a fork call to evaluation process
-                if evaluation_process is not None:
-                    evaluation_process.terminate()
-                    time.sleep(2)
-                    evaluation_process.kill()
-                
-                # root_path = '/home/ezipe/chess_transformer_mothership/lichess-bot'
-                root_path = '/chess_transformer_mothership/lichess-bot'
-                evaluation_process = subprocess.Popen(['bash', '-c', f"cd {root_path} && .venv/bin/python lichess-bot.py --weight_file {Path(weight_file).resolve()} --temperature {temperature} --config_token {lichess_bot_token}"])
-                
+        wlog({
+            "iter": iter_num,
+            "train/loss": losses['train'],
+            "val/loss": losses['val'],
+            "lr": lr,
+            "mfu": running_mfu*100, # convert to percentage
+        })
+            
+        best_val_loss = losses['val']
+        # if iter_num > 0:
+        if True:
+            checkpoint = {
+                'model': raw_model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'model_args': model_args,
+                'iter_num': iter_num,
+                'best_val_loss': best_val_loss,
+                'config': config,
+            }
+            print(f"saving checkpoint to {out_dir}")
+            weight_file = os.path.join(out_dir, f'ckpt_{iter_num}.pt')
+            os.makedirs(out_dir, exist_ok=True)
+            torch.save(checkpoint, weight_file)
+            # Add a fork call to evaluation process
+            if evaluation_process is not None:
+                evaluation_process.terminate()
+                time.sleep(2)
+                evaluation_process.kill()
+            
+            # root_path = '/home/ezipe/chess_transformer_mothership/lichess-bot'
+            root_path = '/chess_transformer_mothership/lichess-bot'
+            # evaluation_process = subprocess.Popen(['bash', '-c', f"cd {root_path} && .venv/bin/python lichess-bot.py --weight_file {Path(weight_file).resolve()} --temperature {temperature} --config_token {lichess_bot_token}"])
+            play_stockfish_with_nanogpt(weight_file, num_games=10, skill_level_range=[0, 4, 6], betterstack_log=betterstack_log) # make this run in the background?
+            
                 
     if iter_num == 0 and eval_only:
         break
@@ -372,8 +376,7 @@ while True:
             mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
             running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
         print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%")
-        if wandb_log:
-            wandb.log({
+        wlog({
                 "iter": iter_num,
                 "train/loss": lossf,
                 "lr": lr,

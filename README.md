@@ -1,7 +1,7 @@
 # QUICKSTART
 
 ```
-pip install torch numpy transformers datasets tiktoken wandb tqdm
+pip install torch numpy transformers datasets tiktoken wandb tqdm python-dotenv loguru logtail eztils
 wandb login xxxx # xxxx = auth token, find it at wandb.ai/authorze Otherwise, send wandb_log to False in config file (see config path belowq)
 
 git lfs clone https://huggingface.co/datasets/ezipe/adam-chess-data
